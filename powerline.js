@@ -175,8 +175,8 @@ const defaultSegments = {
     dirname: (align, length) => {
         var currentdir = stripNewlines(readTerminalProcess("pwd",[],"").stdout);
         const homedir = require('os').homedir();
-        if (currentdir === homedir) {
-            currentdir = "~"
+        if (currentdir.indexOf(homedir) !== -1) {
+            currentdir = currentdir.replace(homedir, "~");
         }
         if (currentdir.length > length) {
             currentdir = config.unicodechars.dotdotdot + currentdir.slice(-(length - 1));
@@ -210,7 +210,7 @@ const defaultSegments = {
             var ahead = parseInt(commitArray[1],10);
             var behind = parseInt(commitArray[0],10);
             if (ahead === 0 && behind === 0) {
-                addSegment(config.unicodechars.check, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
+                addSegment(config.unicodechars.arrows.up + config.unicodechars.arrows.down + config.unicodechars.check, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
             } else {
                 var cmt = "";
                 if (ahead !== 0) {
@@ -221,6 +221,38 @@ const defaultSegments = {
                 }
                 addSegment(cmt, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
             }
+        },
+        tags: align => {
+            var termcmd = readTerminalProcess("git", ["describe", "--tags"], "");
+            if (termcmd.stderr.toString() === "") {
+                var tag = stripNewlines(termcmd.stdout);
+                addSegment(tag, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
+            }
+        },
+        conflicts: align => {
+            //TODO add number of conflicts
+            if (stripNewlines(readTerminalProcess("git", ["ls-files", "--unmerged"], "").stdout) !== "") {
+                var final = config.unicodechars.err;
+            } else {
+                var final = config.unicodechars.check;
+            }
+            addSegment(final, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
+        },
+        tracking: align => {
+            var untrackedRaw = readTerminalProcess("git", ["diff", "--numstat"]).stdout.toString();
+            var trackedRaw = readTerminalProcess("git", ["diff", "--cached", "--numstat"]).stdout.toString();
+            var untracked = untrackedRaw.split(/\r\n|\r|\n/).length;
+            var tracked = trackedRaw.split(/\r\n|\r|\n/).length;
+            var trck = "";
+            if (untracked !== 0 || tracked !== 0) {
+                if (untracked !== 0) {
+                    trck += "U " + untracked;
+                }
+                if (tracked !== 0) {
+                    trck += (untracked !== 0 ? " " : "") + "C " + tracked;
+                }
+                addSegment(trck, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
+            }
         }
     }
 };
@@ -229,6 +261,9 @@ defaultSegments.exitcode("left");
 defaultSegments.user("left");
 defaultSegments.dirname("left", config.segments.segconfig.dirlength);
 defaultSegments.git.branch("left");
+defaultSegments.git.tags("left");
+defaultSegments.git.conflicts("left");
+defaultSegments.git.tracking("left");
 defaultSegments.git.commits("left");
 //defaultSegments.datetime("left");
 defaultSegments.promptchar("left");
