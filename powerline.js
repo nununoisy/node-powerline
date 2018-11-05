@@ -241,8 +241,8 @@ const defaultSegments = {
         tracking: align => {
             var untrackedRaw = readTerminalProcess("git", ["diff", "--numstat"]).stdout.toString();
             var trackedRaw = readTerminalProcess("git", ["diff", "--cached", "--numstat"]).stdout.toString();
-            var untracked = untrackedRaw.split(/\r\n|\r|\n/).length;
-            var tracked = trackedRaw.split(/\r\n|\r|\n/).length;
+            var untracked = untrackedRaw.split(/\r\n|\r|\n/).length - 1;
+            var tracked = trackedRaw.split(/\r\n|\r|\n/).length - 1;
             var trck = "";
             if (untracked !== 0 || tracked !== 0) {
                 if (untracked !== 0) {
