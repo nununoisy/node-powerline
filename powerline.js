@@ -207,8 +207,8 @@ const defaultSegments = {
             var branchName = stripNewlines(readTerminalProcess("git", ["rev-parse", "--abbrev-ref", "HEAD"], "").stdout);
             var rawCommits = stripNewlines(readTerminalProcess("git", ["rev-list", "--left-right", "--count", "origin/" + branchName + "..." + branchName], "").stdout);
             var commitArray = rawCommits.split("\t");
-            var ahead = parseInt(commitArray[0],10);
-            var behind = parseInt(commitArray[1],10);
+            var ahead = parseInt(commitArray[1],10);
+            var behind = parseInt(commitArray[0],10);
             if (ahead === 0 && behind === 0) {
                 addSegment(config.unicodechars.check, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
             } else {
