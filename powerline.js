@@ -199,8 +199,11 @@ const defaultSegments = {
         addSegment(time, align, config.colors.bg.dir, config.colors.fg.dir, true, false, false);
     },
     git: {
+        getBranchName: () => {
+            return stripNewlines(readTerminalProcess("git", ["rev-parse", "--abbrev-ref", "HEAD"], "").stdout);
+        },
         branch: align => {
-            var branchName = stripNewlines(readTerminalProcess("git", ["rev-parse", "--abbrev-ref", "HEAD"], "").stdout);
+            var branchName = defaultSegments.git.getBranchName();
             addSegment(config.unicodechars.gitbranch + " " + branchName, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
         },
         commits: align => {
@@ -253,6 +256,13 @@ const defaultSegments = {
                 }
                 addSegment(trck, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
             }
+        },
+        stash: align => {
+            var stashRaw = readTerminalProcess("git", ["stash", "list"], "").stdout.toString();
+            var stashes = stashRaw.split(/\r\n|\r|\n/).length - 1;
+            if (stashes !== 0) {
+                addSegment(config.unicodechars.flag + " " + stashes, align, config.colors.bg.git, config.colors.fg.git, true, false, false);
+            }
         }
     }
 };
@@ -260,12 +270,15 @@ const defaultSegments = {
 defaultSegments.exitcode("left");
 defaultSegments.user("left");
 defaultSegments.dirname("left", config.segments.segconfig.dirlength);
-defaultSegments.git.branch("left");
-defaultSegments.git.tags("left");
-defaultSegments.git.conflicts("left");
-defaultSegments.git.tracking("left");
-defaultSegments.git.commits("left");
-//defaultSegments.datetime("left");
+if (defaultSegments.git.getBranchName() !== "") {
+    defaultSegments.git.branch("left");
+    defaultSegments.git.tags("left");
+    defaultSegments.git.conflicts("left");
+    defaultSegments.git.tracking("left");
+    defaultSegments.git.commits("left");
+    defaultSegments.git.stash("left");
+}
+defaultSegments.datetime("left");
 defaultSegments.promptchar("left");
 
 

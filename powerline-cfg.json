@@ -28,7 +28,8 @@
                 "\u0020"
             ]
         },
-        "dotdotdot": "\u2026"
+        "dotdotdot": "\u2026",
+        "flag": "\u2691"
     },
     "colors256": true,
     "colors": {
