@@ -54,22 +54,23 @@
     },
     "segments": {
         "ps1": [
-            "exitcode",
-            "user",
-            "dir",
-            "promptcharacter"
+            "defaultSegments.exitcode",
+            "defaultSegments.user",
+            "defaultSegments.dir",
+            "defaultSegments.promptcharacter"
         ],
         "ps2": [
-            "literal-c{dir}: "
+            "defaultSegments.exitcode",
+            "defaultSegments.literal({c:'dir'},'>')"
         ],
         "ps0enabled": false,
         "ps0": [],
         "immersebar": [
-            "date-c{user}",
-            "time",
-            "battery",
-            "git-a{right}"
+            "defaultSegments.datetime",
+            "defaultSegments.battery",
+            "defaultSegments.gitCompile({a:'right'})"
         ],
+        "immerserefresh": 1000,
         "segconfig": {
             "datefmt": "%A, %B %d, %Y",
             "timefmt": "%H:%M:%S",
@@ -90,13 +91,14 @@
             },
             "gitarrows": false,
             "gitsegments": [
-                "branch",
-                "tag",
-                "commits",
-                "conflicts",
-                "tracking",
-                "stash"
+                "defaultSegments.git.branch",
+                "defaultSegments.git.tag",
+                "defaultSegments.git.commits",
+                "defaultSegments.git.conflicts",
+                "defaultSegments.git.tracking",
+                "defaultSegments.git.stash"
             ]
         }
-    }
+    },
+    "addons": []
 }
