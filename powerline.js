@@ -356,6 +356,7 @@ var defaultSegments = {
         var color = 'git';
         if (!!options.c) align = options.c;
         let gitSegs = [];
+	if (defaultSegments.git.getBranchName() === "") return;
         config.segments.segconfig.gitsegments.forEach(gitsegment => {
             if (paren.test(gitsegment)) {
                 throw new Error("Cannot add arguments to individual gitsegments. Fix gitsegment " + gitsegment);

@@ -5,7 +5,6 @@
 _POWERLINE_DIR="/home/noah/node-powerline"
 
 _draw_immersebar() {
-    #TLINES="$1"
     ((TLINES--))
     tput sc                                                     #save cursor position
     tput cup "$TLINES" 0                                        #move to (lines),0
@@ -16,20 +15,22 @@ _draw_immersebar() {
 
 _immersebar_setup() {
     # you need an actually OK terminal for this, K?
-    export TLINES="$(tput cols)"
+    export TLINES="$(tput lines)"
     ((TLINES--))
     ((TLINES--))
     tput sc                                     #save cursor position
     tput csr 0 "$TLINES"                        #set scroll region to exclude last line
     tput rc                                     #restore cursor position
-    _draw_immersebar $(( $TLINES + 2 ))
+    ((TLINES++))
+    ((TLINES++))
+    _draw_immersebar "$TLINES"
 }
 
 _update_prompts() {
     SAVE="$?"
     set +m
     eval $(node ${_POWERLINE_DIR}/powerline-min.js $SAVE MULTI &)
-    _draw_immersebar &
+    _draw_immersebar
     wait
     set -m
     return $SAVE
