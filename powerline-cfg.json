@@ -24,8 +24,7 @@
                 "\u258C",
                 "\u258D",
                 "\u258E",
-                "\u258F",
-                "\u0020"
+                "\u258F"
             ]
         },
         "dotdotdot": "\u2026",
@@ -40,6 +39,7 @@
             "user": 208,
             "dir": 240,
             "git": 33,
+            "immersebar": 240,
             "custom": []
         },
         "fg": {
@@ -60,7 +60,6 @@
             "defaultSegments.promptcharacter"
         ],
         "ps2": [
-            "defaultSegments.exitcode",
             "defaultSegments.literal({c:'dir'},'>')"
         ],
         "ps0enabled": false,
@@ -70,17 +69,17 @@
             "defaultSegments.battery",
             "defaultSegments.gitCompile({a:'right'})"
         ],
-        "immerserefresh": 1000,
         "segconfig": {
             "datefmt": "%A, %B %d, %Y",
-            "timefmt": "%H:%M:%S",
+            "timefmt": "%H:%M",
             "dirlength": 50,
             "battery": {
-                "bat-id": "0",
+                "batno": "0",
+                "customfile": "/home/ubuntu/workspace/batfile",
                 "indicator": {
-                    "width": 10,
-                    "left": "check",
-                    "right": "err"
+                    "normal": "check",
+                    "low": "err",
+                    "lowthreshold": 10
                 }
             },
             "exitcode": {

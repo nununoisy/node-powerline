@@ -1,0 +1,26 @@
+{
+  "name": "node-powerline",
+  "version": "1.0.0",
+  "description": "Powerline in node.js",
+  "main": "powerline.js",
+  "dependencies": {
+    "async": "^2.6.1",
+    "uglify-es": "github:mishoo/UglifyJS2#harmony"
+  },
+  "devDependencies": {
+    "async": "^2.6.1"
+  },
+  "scripts": {
+    "test": "node powerline.js 0 PS1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/nununoisy/node-powerline.git"
+  },
+  "author": "nununoisy",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/nununoisy/node-powerline/issues"
+  },
+  "homepage": "https://github.com/nununoisy/node-powerline#readme"
+}

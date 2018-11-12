@@ -5,23 +5,29 @@
 /* args:
    node powerline.js [STATUS] [PROMPT]
    node powerline.js -b [COLS]
-   node powerline.js -r [SHELL]
    STATUS: exit status of previous command ($?)
    PROMPT: what to generate (PS[0,2])
    -b : start immersebar daemon
       [COLS]: terminal width
-   -r : print rcfile instructions for [SHELL]
-      [SHELL] is one of {bash, zsh, fish, csh}
 */
 
 // read config file
 const fs = require('fs');
+const async = require('async');
 
 try {
     var config = JSON.parse(fs.readFileSync(__dirname + "/powerline-cfg.json"));
 } catch (err) {
     throw new Error("Couldn't read configuration file due to " + err.name + " - " + err.message);
 }
+
+// optimizations
+const out = s => {
+    process.stdout.write(s);
+};
+
+var bgc = config.colors.bg;
+var fgc = config.colors.fg;
 
 // define some helpful functions
 // summon subprocesses
@@ -41,11 +47,10 @@ var right = [];
 // "c{xyz}" - format command 'xyz'
 //      bgNNN - background color NNN
 //      fgNNN - foreground color NNN
-//      important - draw if there is not a lot of room
 // right is drawn in reverse order
 
 const addSegment = (contents, align, color, tcolor, terminate, sterminate, important) => {
-    if (!contents || contents === "") throw new SyntaxError("contents must not be empty");
+    if (!contents || contents === "") throw new SyntaxError("Contents must not be empty");
     if (align === "left") {
         if (color.toString()) {
             left.push("c{bg" + color + "}");
@@ -53,35 +58,35 @@ const addSegment = (contents, align, color, tcolor, terminate, sterminate, impor
         if (tcolor.toString()) {
             left.push("c{fg" + tcolor + "}");
         }
-        if (important) {
+        /*if (important) {
             //left.push("c{important}");
             // not yet
-        }
+        }*/
         left.push(contents);
         if (terminate) {
-            left.push("c{terminator}");
+            left.push("c{t}");
         }
         if (sterminate) {
-            left.push("c{softterminator}");
+            left.push("c{st}");
         }
     } else if (align === "right") {
         if (sterminate) {
-            right.push("c{softterminator}");
+            right.push("c{st}");
         }
         if (terminate) {
-            right.push("c{terminator}");
-        }
-        if (important) {
-            //right.push("c{important}");
-            // not yet
-        }
-        right.push(contents);
-        if (tcolor) {
-            right.push("c{fg" + tcolor + "}");
+            right.push("c{t}");
         }
         if (color) {
             right.push("c{bg" + color + "}");
         }
+        if (tcolor) {
+            right.push("c{fg" + tcolor + "}");
+        }
+        /*if (important) {
+            //right.push("c{important}");
+            // not yet
+        }*/
+        right.push(contents);
     } else {
         throw new SyntaxError("align must be 'left' or 'right'");
     }
@@ -92,92 +97,94 @@ const parseColor = color => {
     return color.replace(/c{(b|f)g/g, "").replace(/}/g, "");
 };
 
-const writeColors = (cbg, cfg) => {
+const writeColors = (cbg, cfg, surround) => {
     if (!config.colors256) {
         // 16 color conversion magic here
         throw new Error("Not supported yet");
     } else {
-        process.stdout.write("\\[\u001B[48;5;" + cbg + "m\u001B[38;5;" + cfg + "m\\]");
+        if (surround === false) out("\\[");
+        out("\u001B[48;5;" + cbg + "m\u001B[38;5;" + cfg + "m");
+        if (surround === false) out("\\]");
     }
 };
 
-const clearColors = () => { process.stdout.write("\u001B[0m"); };
+const clearColors = () => { out("\u001B[0m"); };
 
 var colorRegex = /^c{(b|f)g[0-9]{1,3}}$/;
 
 var seglength = 0;
 
 const trackLength = printstring => {
-    let parsedprintstring = printstring.replace(/\\\[.*\\\]/g, '');
+    let parsedprintstring = printstring.replace(/(\\\[|\\\])/g, '');
     seglength += parsedprintstring.length;
-    process.stdout.write(printstring);
+    out(parsedprintstring);
 }
 
 const drawSegments = (left, right, immerse) => {
     if (!immerse && right.length !== 0) throw new SyntaxError("Right-aligned segments not allowed in prompt");
     var i,c,cbg,cfg;
-    cbg = config.colors.bg.termdefault;
-    cfg = config.colors.fg.termdefault;
+    cbg = bgc.termdefault;
+    cfg = fgc.termdefault;
     if (!immerse) {
         clearColors();
         for (i=0; i<left.length; i++) {
             c = left[i];
-            if (c == "c{terminator}") {
-                process.stdout.write(" ");
+            if (c == "c{t}") {
+                out(" ");
                 cfg = cbg;
                 if (i + 1 === left.length) {
                     clearColors();
-                    process.stdout.write("\\[\u001B[38;5;" + cfg + "m\\]");
-                    process.stdout.write(config.unicodechars.arrows.solidright);
+                    out("\\[\u001B[38;5;" + cfg + "m\\]");
+                    out(config.unicodechars.arrows.solidright);
                 } else {
                     cbg = parseColor(left[i+1]);
                     if (cfg === cbg) {
-                        process.stdout.write(config.unicodechars.arrows.right);
+                        out(config.unicodechars.arrows.right);
                     } else {
-                        writeColors(cbg, cfg);
-                        process.stdout.write(config.unicodechars.arrows.solidright);
+                        writeColors(cbg, cfg, false);
+                        out(config.unicodechars.arrows.solidright);
                     }
                 }
-            } else if (c === "c{softterminator}") {
-                process.stdout.write(" " + config.unicodechars.arrows.right);
+            } else if (c === "c{st}") {
+                out(" " + config.unicodechars.arrows.right);
             } else if (colorRegex.test(c)) {
                 if (c.indexOf("bg") === -1) { //fg
                     cfg = parseColor(c);
                 } else { //bg
                     cbg = parseColor(c);
                 }
-                writeColors(cbg, cfg);
-                process.stdout.write((c.indexOf("bg") !== -1 ? " " : ""));
+                writeColors(cbg, cfg, false);
+                out((c.indexOf("bg") !== -1 ? " " : ""));
             } else if (c === "c{important}") {
                 // magic here
             } else {
-                process.stdout.write(c);
+                out(c);
             }
         }
         clearColors();
-        process.stdout.write(" ");
+        out(" ");
     } else {
         var cols = process.argv[3];
+        seglength = 0;
         clearColors();
         for (i=0; i<left.length; i++) {
             c = left[i];
-            if (c == "c{terminator}") {
+            if (c == "c{t}") {
                 trackLength(" ");
                 cfg = cbg;
                 if (i + 1 === left.length) {
-                    clearColors();
-                    trackLength("\\[\u001B[38;5;" + cfg + "m\\]");
+                    writeColors(bgc.immersebar, cfg, true);
                     trackLength(config.unicodechars.arrows.solidright);
                 } else {
                     cbg = parseColor(left[i+1]);
                     if (cfg === cbg) {
                         trackLength(config.unicodechars.arrows.right);
                     } else {
-                        writeColors(cbg, cfg);
+                        writeColors(cbg, cfg, true);
                         trackLength(config.unicodechars.arrows.solidright);
                     }
                 }
-            } else if (c === "c{softterminator}") {
+            } else if (c === "c{st}") {
                 trackLength(" " + config.unicodechars.arrows.right);
             } else if (colorRegex.test(c)) {
                 if (c.indexOf("bg") === -1) { //fg
@@ -193,46 +200,60 @@ const drawSegments = (left, right, immerse) => {
                 trackLength(c);
             }
         }
-        let rightbuffer = '';
         let rightLength = 0;
-        let addbuf = s => {
-            rightLength += s.replace(/\\\[.*\\\]/g, '').length;
-            rightbuffer += s;
-        };
-        for (i=right.length; i<0; i--) {
+        for (i=0; i<right.length; i++) {
             c = right[i];
-            if (c == "c{terminator}") {
-                addbuf(" ");
+            if (c === "c{t}" || c === "c{st}") {
+                rightLength += 2;
+            } else if (c.indexOf("c{bg") !== -1) {
+                rightLength++;
+            } else if (c.indexOf("c{fg") === -1 && c !== "c{important}") {
+                rightLength += c.length;
+            }
+        }
+        writeColors(bgc.immersebar, cfg, true);
+        for (i=1; i<(cols - seglength - rightLength); i++) {
+            out(" ");
+        }
+        for (i=0; i<right.length; i++) {
+            c = right[i];
+            if (c == "c{t}") {
                 cfg = cbg;
-                if (i - 1 === right.length) {
-                    clearColors();
-                    addbuf("\\[\u001B[38;5;" + cfg + "m\\]");
-                    addbuf(config.unicodechars.arrows.solidleft);
+                if (i === 0) {
+                    cfg = parseColor(right[1]);
+                    cbg = bgc.immersebar;
+                    writeColors(cbg, cfg, true);
+                    out(config.unicodechars.arrows.solidleft);
                 } else {
-                    cbg = parseColor(right[i-1]);
+                    cbg = parseColor(right[i+1]);
                     if (cfg === cbg) {
-                        addbuf(config.unicodechars.arrows.right);
+                        out(" " + config.unicodechars.arrows.left);
                     } else {
-                        writeColors(cbg, cfg);
-                        addbuf(config.unicodechars.arrows.solidright);
+                        writeColors(cbg, cfg, true);
+                        out(" " + config.unicodechars.arrows.solidleft);
                     }
                 }
-            } else if (c === "c{softterminator}") {
-                process.stdout.write(" " + config.unicodechars.arrows.right);
+            } else if (c === "c{st}") {
+                out(" " + config.unicodechars.arrows.left);
             } else if (colorRegex.test(c)) {
                 if (c.indexOf("bg") === -1) { //fg
                     cfg = parseColor(c);
                 } else { //bg
                     cbg = parseColor(c);
                 }
-                writeColors(cbg, cfg);
-                process.stdout.write((c.indexOf("bg") !== -1 ? " " : ""));
+                writeColors(cbg, cfg, true);
+                out((c.indexOf("bg") !== -1 ? " " : ""));
             } else if (c === "c{important}") {
                 // magic here
             } else {
-                process.stdout.write(c);
+                if (!c) {
+                    throw new Error("Error at index " + i);
+                }
+                out(c);
             }
         }
+        out(' ');
+        clearColors();
     }
 };
 
@@ -249,79 +270,129 @@ console.log(left); */
 var defaultSegments = {
     exitcode: options => {
         var align = 'left';
-        if (options.a) align = options.a;
+        if (!!options.a) align = options.a;
         var color = 'err';
-        if (options.c) color = options.c;
+        if (!!options.c) color = options.c;
         var color2 = 'check';
-        if (options.c2) color2 = options.c2;
+        if (!!options.c2) color2 = options.c2;
         var err = parseInt(process.argv[2],10);
         if (isNaN(err)) {
             throw new Error("No exitcode passed");
         }
         if (err === 0) {
-            addSegment(config.unicodechars.check, align, config.colors.bg[color2], config.colors.fg[color2], true, false, false);
+            addSegment(config.unicodechars.check, align, bgc[color2], fgc[color2], true, false, false);
         } else {
-            addSegment(config.unicodechars.err + " " + err + (err != config.segments.segconfig.exitcode.codes.default[err] ? ": " + config.segments.segconfig.exitcode.codes.default[err] : ''), align, config.colors.bg[color], config.colors.fg[color], true, false, true);
+            addSegment(config.unicodechars.err + " " + err + (err != config.segments.segconfig.exitcode.codes.default[err] ? ": " + config.segments.segconfig.exitcode.codes.default[err] : ''), align, bgc[color], fgc[color], true, false, true);
         }
     },
     user: options => {
         var align = 'left';
-        if (options.a) align = options.a;
+        if (!!options.a) align = options.a;
         var color = 'user';
-        if (options.c) color = options.c;
+        if (!!options.c) color = options.c;
         var uname = readTerminalProcess("whoami", [], "");
-        addSegment(stripNewlines(uname.stdout), align, config.colors.bg[color], config.colors.fg[color], true, false, true);
+        addSegment(stripNewlines(uname.stdout), align, bgc[color], fgc[color], true, false, true);
     },
     dir: options => {
         var align = 'left';
-        if (options.a) align = options.a;
+        if (!!options.a) align = options.a;
         var color = 'dir';
-        if (options.c) color = options.c;
+        if (!!options.c) color = options.c;
         var length = config.segments.segconfig.dirlength;
         var currentdir = stripNewlines(readTerminalProcess("pwd",[],"").stdout);
         const homedir = require('os').homedir();
-        if (currentdir.indexOf(homedir) !== -1) {
-            currentdir = currentdir.replace(homedir, "~");
-        }
+        currentdir = currentdir.replace(homedir, "~");
         if (currentdir.length > length) {
             currentdir = config.unicodechars.dotdotdot + currentdir.slice(-(length - 1));
         }
         currentdir.split("/").forEach((fname, i, a) => {
             if (fname !== "") {
                 var termtype = (i + 1 === a.length);
-                addSegment(fname, align, config.colors.bg[color], config.colors.fg[color], termtype, !termtype, true);
+                addSegment(fname, align, bgc[color], fgc[color], termtype, !termtype, true);
             }
         });
     },
     promptcharacter: options => {
         var align = 'left';
-        if (options.a) align = options.a;
+        if (!!options.a) align = options.a;
         var color = 'user';
-        if (options.c) color = options.c;
+        if (!!options.c) color = options.c;
         var uid = parseInt(stripNewlines(readTerminalProcess("id", ["-u"], "").stdout),10);
-        addSegment((uid === 0 ? "#" : "$"), align, config.colors.bg[color], config.colors.fg[color], true, false, true);
+        addSegment((uid === 0 ? "#" : "$"), align, bgc[color], fgc[color], true, false, true);
     },
     datetime: options => {
         var align = 'left';
-        if (options.a) align = options.a;
-        var color = 'err';
-        if (options.c) color = options.c;
+        if (!!options.a) align = options.a;
+        var color = 'dir';
+        if (!!options.c) color = options.c;
         var date = stripNewlines(readTerminalProcess("date", ["+"+config.segments.segconfig.datefmt], "").stdout);
         var time = stripNewlines(readTerminalProcess("date", ["+"+config.segments.segconfig.timefmt], "").stdout);
-        addSegment(date, align, config.colors.bg[color], config.colors.fg[color], false, true, false);
-        addSegment(time, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+        addSegment(date, align, bgc[color], fgc[color], false, true, false);
+        addSegment(time, align, bgc[color], fgc[color], true, false, false);
     },
     gitCompile: options => {
         var align = 'left';
-        if (options.a) align = options.a;
+        if (!!options.a) align = options.a;
         var color = 'git';
-        if (options.c) align = options.c;
+        if (!!options.c) align = options.c;
+        let gitSegs = [];
         config.segments.segconfig.gitsegments.forEach(gitsegment => {
             if (paren.test(gitsegment)) {
                 throw new Error("Cannot add arguments to individual gitsegments. Fix gitsegment " + gitsegment);
             }
-            (1,eval)(gitsegment + "(" + align + "," + color + ")");
+            gitSegs.push(new Function('c',"global." + gitsegment + "('" + align + "','" + color + "');"));
         });
+        async.parallel(gitSegs);
+    },
+    battery: options => {
+        var align = 'left';
+        if (!!options.a) align = options.a;
+        var color = 'dir';
+        if (!!options.c) align = options.c;
+        var batfile = (!!config.segments.segconfig.battery.customfile ? config.segments.segconfig.battery.customfile : "/sys/class/power_supply/BAT" + config.segconfig.battery.batno + "/uevent");
+        var capacityRaw, status;
+        fs.readFileSync(batfile).toString().split("\n").forEach(e => {
+            if (e.indexOf("POWER_SUPPLY_CAPACITY=") !== -1) {
+                capacityRaw = e.replace("POWER_SUPPLY_CAPACITY=", "");
+            }
+            if (e.indexOf("POWER_SUPPLY_STATUS=") !== -1) {
+                status = e.replace("POWER_SUPPLY_STATUS=", "");
+            }
+        });
+        let capacity = (parseFloat(capacityRaw,10) / 10);
+        capacity = (capacity <= 10 ? capacity : 10);
+        capacity = (capacity > 0 ? capacity : 0.1);
+        if (!capacity || !status) {
+            throw new Error("Invalid battery file");
+        }
+        var eighths = Math.round(capacity * 8) / 8;
+        var whole = Math.floor(eighths);
+        if (whole === eighths) {
+            if (whole !== 10) whole++;
+            eighths = 0;
+        } else {
+            eighths = eighths - whole;
+        }
+        var remaining = 9 - whole; // 10 - whole - 1 (for eighths)
+        remaining = (remaining >= 0 ? remaining : 0);
+        var buf = '';
+        let i;
+        //console.log([capacity, whole, eighths, remaining]);
+        for (i=0; i<whole; i++) {
+            buf += config.unicodechars.battery.fractionblocks[0];
+        }
+        if (eighths !== 0) {
+            buf += config.unicodechars.battery.fractionblocks[8 - (eighths * 8)];
+        }
+        for (i=0; i<remaining; i++) {
+            buf += " ";
+        }
+        let charge = (status === "Charging" ? config.unicodechars.battery.bolt + " " : '');
+        addSegment(charge + (capacity * 10).toString() + "%", align, bgc[color], fgc[color], true, false, false);
+        let fncolor = config.segments.segconfig.battery.indicator.normal;
+        let flcolor = config.segments.segconfig.battery.indicator.low;
+        let fcolor = (capacityRaw > config.segments.segconfig.battery.indicator.lowthreshold ? fncolor : flcolor);
+        addSegment(buf, align, bgc[color], bgc[fcolor], true, false, false);
     },
     git: {
         getBranchName: () => {
@@ -329,7 +400,7 @@ var defaultSegments = {
         },
         branch: (align, color) => {
             var branchName = defaultSegments.git.getBranchName();
-            addSegment(config.unicodechars.gitbranch + " " + branchName, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+            addSegment(config.unicodechars.gitbranch + " " + branchName, align, bgc[color], fgc[color], true, false, false);
         },
         commits: (align, color) => {
             var branchName = stripNewlines(readTerminalProcess("git", ["rev-parse", "--abbrev-ref", "HEAD"], "").stdout);
@@ -338,7 +409,7 @@ var defaultSegments = {
             var ahead = parseInt(commitArray[1],10);
             var behind = parseInt(commitArray[0],10);
             if (ahead === 0 && behind === 0) {
-                addSegment(config.unicodechars.arrows.up + config.unicodechars.arrows.down + config.unicodechars.check, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+                addSegment(config.unicodechars.arrows.up + config.unicodechars.arrows.down + config.unicodechars.check, align, bgc[color], fgc[color], true, false, false);
             } else {
                 var cmt = "";
                 if (ahead !== 0) {
@@ -347,14 +418,14 @@ var defaultSegments = {
                 if (behind !== 0) {
                     cmt += config.unicodechars.arrows.down + " " + behind;
                 }
-                addSegment(cmt, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+                addSegment(cmt, align, bgc[color], fgc[color], true, false, false);
             }
         },
         tag: (align, color) => {
             var termcmd = readTerminalProcess("git", ["describe", "--tags"], "");
             if (termcmd.stderr.toString() === "") {
                 var tag = stripNewlines(termcmd.stdout);
-                addSegment(tag, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+                addSegment(tag, align, bgc[color], fgc[color], true, false, false);
             }
         },
         conflicts: (align, color) => {
@@ -364,7 +435,7 @@ var defaultSegments = {
             } else {
                 var final = config.unicodechars.check;
             }
-            addSegment(final, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+            addSegment(final, align, bgc[color], fgc[color], true, false, false);
         },
         tracking: (align, color) => {
             var untrackedRaw = readTerminalProcess("git", ["diff", "--numstat"]).stdout.toString();
@@ -379,25 +450,25 @@ var defaultSegments = {
                 if (tracked !== 0) {
                     trck += (untracked !== 0 ? " " : "") + "C " + tracked;
                 }
-                addSegment(trck, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+                addSegment(trck, align, bgc[color], fgc[color], true, false, false);
             }
         },
         stash: (align, color) => {
             var stashRaw = readTerminalProcess("git", ["stash", "list"], "").stdout.toString();
             var stashes = stashRaw.split(/\r\n|\r|\n/).length - 1;
             if (stashes !== 0) {
-                addSegment(config.unicodechars.flag + " " + stashes, align, config.colors.bg[color], config.colors.fg[color], true, false, false);
+                addSegment(config.unicodechars.flag + " " + stashes, align, bgc[color], fgc[color], true, false, false);
             }
         }
     },
     literal: (options, string) => {
         var align = 'left';
-        if (options.a) align = options.a;
+        if (!!options.a) align = options.a;
         var color = 'dir';
-        if (options.c) color = options.c;
+        if (!!options.c) color = options.c;
         var color2 = 'dir';
-        if (options.c2) color = options.c2;
-        addSegment(string, align, config.colors.bg[color], config.colors.fg[color], true, false, true);
+        if (!!options.c2) color = options.c2;
+        addSegment(string, align, bgc[color], fgc[color], true, false, true);
     }
 };
 
@@ -425,38 +496,22 @@ const parseSegmentDefs = () => {
     immersebar = config.segments.immersebar;
 };
 
-const print_bashrc = () => {
-    parseSegmentDefs();
-    if (ps1.length > 0) {
-        process.stdout.write("_ps1_gen() { PS1=\"node " + __dirname + "/powerline.js $? 'PS1'\"; }; ");
-        process.stdout.write("PROMPT_COMMAND=\"PROMPT_COMMAND; _ps1_gen\";");
-    }
-    if (ps2.length > 0) {
-        process.stdout.write("_ps2_gen() { PS2=\"node " + __dirname + "/powerline.js $? 'PS2'\"; }; ");
-        process.stdout.write("PROMPT_COMMAND=\"PROMPT_COMMAND; _ps2_gen\";");
-    }
-    if (ps0.length > 0) {
-        process.stdout.write("_ps0_gen() { PS0=\"node " + __dirname + "/powerline.js $? 'PS0'\"; }; ");
-        process.stdout.write("PROMPT_COMMAND=\"PROMPT_COMMAND; _ps0_gen\";");
-    }
-};
-
-const printRC = shell => {
-    if (shell === "bash") {
-        print_bashrc();
-    }
-};
-
 /* var global = (function () {  
     return this || (1, eval)('this');  
 }()); */
 
+var segFuncs = [];
+
 const runSegmentNameFunction = cns => {
-    if (paren.test(cns)) {
-        (1, eval)("global." + cns + ";"); // eval indirect global black magic
+    // old sync code is still here
+    /*if (paren.test(cns)) {
+        //(1, eval)("global." + cns + ");"); // eval indirect global black magic
+        segFuncs.push(new Function("global." + cns + ";"));
     } else {
-        (1, eval)("global." + cns + "({});"); // nsfw code
-    }
+        //(1, eval)("global." + cns + "({});"); // nsfw code
+        segFuncs.push(new Function("global." + cns + "({});"));
+    }*/
+    segFuncs.push(new Function('c', "global." + cns + (paren.test(cns) ? ";" : "({});") + ""));
 };
 
 const chooseSegments = () => {
@@ -464,16 +519,31 @@ const chooseSegments = () => {
     parseSegmentDefs();
     switch (choice) {
         case 'PS0':
-            ps0.forEach(runSegmentNameFunction);
-            drawSegments(left, [], false);
+            if (ps0.length > 0 && config.segments.ps0enabled) {
+                ps0.forEach(runSegmentNameFunction);
+                async.parallel(segFuncs);
+                drawSegments(left, [], false);
+            } else {
+                out(process.env['PS0'] || '');
+            }
             break;
         case 'PS1':
-            ps1.forEach(runSegmentNameFunction);
-            drawSegments(left, [], false);
+            if (ps1.length > 0) {
+                ps1.forEach(runSegmentNameFunction);
+                async.parallel(segFuncs);
+                drawSegments(left, [], false);
+            } else {
+                out(process.env['PS1'] || '');
+            }
             break;
         case 'PS2':
-            ps2.forEach(runSegmentNameFunction);
-            drawSegments(left, [], false);
+            if (ps2.length > 0) {
+                ps2.forEach(runSegmentNameFunction);
+                async.parallel(segFuncs);
+                drawSegments(left, [], false);
+            } else {
+                out(process.env['PS2'] || '');
+            }
             break;
         default:
             throw new Error("Invalid or blank segment mode");
@@ -500,12 +570,16 @@ defaultSegments.promptchar("left");
 drawSegments(left, [], false);
 */
 
-if (process.argv[2] === "-b") {
+const immerseDraw = () => {
     parseSegmentDefs();
     immersebar.forEach(runSegmentNameFunction);
+    async.parallel(segFuncs);
     drawSegments(left,right,true);
-} else if (process.argv[2] === '-d') {
-    printRC(process.argv[3]);
+}
+
+if (process.argv[2] === "-b") {
+    immerseDraw();
+    //setInterval(immerseDraw, config.segments.immerserefresh);
 } else {
     chooseSegments();
 }
