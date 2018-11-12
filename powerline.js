@@ -1,6 +1,5 @@
 // powerline.js
 // successor to powerline_bash
-//"use strict";
 
 /* args:
    node powerline.js [STATUS] [PROMPT]
@@ -12,7 +11,28 @@
 */
 
 // read config file
+const Module = require('module');
 const fs = require('fs');
+const exists = fs.existsSync;
+var _require = Module.prototype.require;
+const SAVE_FILENAME = __dirname + "/cache.dat"
+var nameCache = exists(SAVE_FILENAME) ? JSON.parse(fs.readFileSync(SAVE_FILENAME, 'utf-8')) : {};
+Module.prototype.require = function cachePathsRequire(name) {
+  var pathToLoad;
+  var currentModuleCache = nameCache[this.filename];
+  if (!currentModuleCache) {
+    currentModuleCache = {};
+    nameCache[this.filename] = currentModuleCache;
+  }
+  if (currentModuleCache[name]) {
+    pathToLoad = currentModuleCache[name];
+  } else {
+    pathToLoad = Module._resolveFilename(name, this);
+    currentModuleCache[name] = pathToLoad;
+  }
+  return _require.call(this, pathToLoad);
+};
+
 const async = require('async');
 
 try {
@@ -349,7 +369,7 @@ var defaultSegments = {
         if (!!options.a) align = options.a;
         var color = 'dir';
         if (!!options.c) align = options.c;
-        var batfile = (!!config.segments.segconfig.battery.customfile ? config.segments.segconfig.battery.customfile : "/sys/class/power_supply/BAT" + config.segconfig.battery.batno + "/uevent");
+        var batfile = (!!config.segments.segconfig.battery.customfile ? config.segments.segconfig.battery.customfile : "/sys/class/power_supply/BAT" + config.segments.segconfig.battery.batno + "/uevent");
         var capacityRaw, status;
         fs.readFileSync(batfile).toString().split("\n").forEach(e => {
             if (e.indexOf("POWER_SUPPLY_CAPACITY=") !== -1) {
@@ -511,7 +531,7 @@ const runSegmentNameFunction = cns => {
         //(1, eval)("global." + cns + "({});"); // nsfw code
         segFuncs.push(new Function("global." + cns + "({});"));
     }*/
-    segFuncs.push(new Function('c', "global." + cns + (paren.test(cns) ? ";" : "({});") + ""));
+    segFuncs.push(new Function('c', "global." + cns + (cns.indexOf('(') !== -1 ? ";" : "({});")));
 };
 
 const chooseSegments = () => {
@@ -543,6 +563,35 @@ const chooseSegments = () => {
                 drawSegments(left, [], false);
             } else {
                 out(process.env['PS2'] || '');
+            }
+            break;
+	    case 'MULTI':
+	        if (ps0.length > 0 && config.segments.ps0enabled) {
+	            ps0.forEach(runSegmentNameFunction);
+		        async.parallel(segFuncs);
+		        out('PS0="');
+		        drawSegments(left, [], false);
+		        out('"; ');
+		        segFuncs = [];
+		        left = [];
+	        }
+	        if (ps1.length > 0) {
+	            ps1.forEach(runSegmentNameFunction);
+		        async.parallel(segFuncs);
+		        out('PS1="');
+		        drawSegments(left, [], false);
+		        out('"; ');
+		        segFuncs = [];
+		        left = [];
+            }
+            if (ps2.length > 0) {
+	            ps2.forEach(runSegmentNameFunction);
+		        async.parallel(segFuncs);
+		        out('PS2="');
+		        drawSegments(left, [], false);
+		        out('"; ');
+		        segFuncs = [];
+		        left = [];
             }
             break;
         default:

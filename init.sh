@@ -2,34 +2,33 @@
 # powerline setup
 # source me in a bashrc
 
-_POWERLINE_DIR="/home/ubuntu/workspace"
+_POWERLINE_DIR="/home/noah/node-powerline"
 
 _draw_immersebar() {
-    TLINES="$(tput lines)"
+    #TLINES="$1"
     ((TLINES--))
     tput sc                                                     #save cursor position
     tput cup "$TLINES" 0                                        #move to (lines),0
     node ${_POWERLINE_DIR}/powerline-min.js -b "$(tput cols)"   #print immersebar
     tput rc                                                     #restore cursor position
+    ((TLINES++))
 }
 
 _immersebar_setup() {
     # you need an actually OK terminal for this, K?
-    TLINES="$(tput lines)"
+    export TLINES="$(tput cols)"
     ((TLINES--))
     ((TLINES--))
     tput sc                                     #save cursor position
     tput csr 0 "$TLINES"                        #set scroll region to exclude last line
     tput rc                                     #restore cursor position
-    _draw_immersebar
+    _draw_immersebar $(( $TLINES + 2 ))
 }
 
 _update_prompts() {
     SAVE="$?"
     set +m
-    #PS0="$(node ${_POWERLINE_DIR}/powerline-min.js $SAVE PS0 &)"
-    PS1="$(node ${_POWERLINE_DIR}/powerline-min.js $SAVE PS1 &)"
-    PS2="$(node ${_POWERLINE_DIR}/powerline-min.js $SAVE PS2 &)"
+    eval $(node ${_POWERLINE_DIR}/powerline-min.js $SAVE MULTI &)
     _draw_immersebar &
     wait
     set -m

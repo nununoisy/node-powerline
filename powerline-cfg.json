@@ -67,6 +67,7 @@
         "immersebar": [
             "defaultSegments.datetime",
             "defaultSegments.battery",
+            "defaultSegments.literal({c:'git',a:'right'},'git')",
             "defaultSegments.gitCompile({a:'right'})"
         ],
         "segconfig": {
@@ -75,7 +76,7 @@
             "dirlength": 50,
             "battery": {
                 "batno": "0",
-                "customfile": "/home/ubuntu/workspace/batfile",
+                "customfile": "",
                 "indicator": {
                     "normal": "check",
                     "low": "err",
