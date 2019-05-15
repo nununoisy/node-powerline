@@ -117,15 +117,30 @@ const parseColor = color => {
     return color.replace(/c{(b|f)g/g, "").replace(/}/g, "");
 };
 
-const writeColors = (cbg, cfg, surround) => {
-    if (!config.colors256) {
-        // 16 color conversion magic here
-        throw new Error("Not supported yet");
-    } else {
-        if (surround === false) out("\\[");
-        out("\u001B[48;5;" + cbg + "m\u001B[38;5;" + cfg + "m");
-        if (surround === false) out("\\]");
+const color16 = (color, bg) => {
+    if (color > 15) {
+        throw new Error("Color is not 16 bit");
     }
+    let intensity = "";
+    let c16 = 0;
+    if (color >= 8) {
+        intensity = ";1";
+        c16 = 22 + color;
+    } else {
+        c16 = 30 + color;
+    }
+    if (bg) c16 += 10;
+    return c16 + intensity;
+}
+
+const writeColors = (cbg, cfg, surround) => {
+    if (surround === false) out("\\[");
+    if (config.colors256) {
+        out("\u001B[48;5;" + cbg + "m\u001B[38;5;" + cfg + "m");
+    } else {
+        out("\u001B[" + color16(cbg, true) + "m\u001B[" + color16(cfg, false) + "m");
+    }
+    if (surround === false) out("\\]");
 };
 
 const clearColors = surround => { out((!surround ? "\\[" : "") + "\u001B[0m" + (!surround ? "\\]" : "")); };
@@ -154,7 +169,7 @@ const drawSegments = (left, right, immerse) => {
                 cfg = cbg;
                 if (i + 1 === left.length) {
                     clearColors(false);
-                    out("\\[\u001B[38;5;" + cfg + "m\\]");
+                    out(config.colors256 ? "\\[\u001B[38;5;" + cfg + "m\\]" : "\\[\u001B[" + color16(cfg, false) + "m\\]");
                     out(config.unicodechars.arrows.solidright);
                 } else {
                     cbg = parseColor(left[i+1]);
@@ -497,7 +512,7 @@ global.defaultSegments = defaultSegments;
 
 const loadAddons = () => {
     config.addons.forEach(addon => {
-        require(__dirname + "/addons/" + addon);
+        require(__dirname + "/addons/" + addon)(global);
     });
 };
 

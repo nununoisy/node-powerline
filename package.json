@@ -4,10 +4,6 @@
   "description": "Powerline in node.js",
   "main": "powerline.js",
   "dependencies": {
-    "async": "^2.6.1",
-    "uglify-es": "github:mishoo/UglifyJS2#harmony"
-  },
-  "devDependencies": {
     "async": "^2.6.1"
   },
   "scripts": {
