@@ -30,7 +30,7 @@ _update_prompts() {
     SAVE="$?"
     set +m
     eval $(node ${_POWERLINE_DIR}/powerline-min.js $SAVE MULTI &)
-    _draw_immersebar
+    _immersebar_setup
     wait
     set -m
     return $SAVE
@@ -38,6 +38,6 @@ _update_prompts() {
 
 trap '_immersebar_setup' WINCH # bash recieves SIGWINCH when terminal is resized
 
-_immersebar_setup
+#_immersebar_setup
 
 export PROMPT_COMMAND="_update_prompts; $PROMPT_COMMAND"

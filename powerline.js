@@ -128,7 +128,7 @@ const writeColors = (cbg, cfg, surround) => {
     }
 };
 
-const clearColors = () => { out("\u001B[0m"); };
+const clearColors = surround => { out((!surround ? "\\[" : "") + "\u001B[0m" + (!surround ? "\\]" : "")); };
 
 var colorRegex = /^c{(b|f)g[0-9]{1,3}}$/;
 
@@ -146,14 +146,14 @@ const drawSegments = (left, right, immerse) => {
     cbg = bgc.termdefault;
     cfg = fgc.termdefault;
     if (!immerse) {
-        clearColors();
+        //clearColors(false);
         for (i=0; i<left.length; i++) {
             c = left[i];
             if (c == "c{t}") {
                 out(" ");
                 cfg = cbg;
                 if (i + 1 === left.length) {
-                    clearColors();
+                    clearColors(false);
                     out("\\[\u001B[38;5;" + cfg + "m\\]");
                     out(config.unicodechars.arrows.solidright);
                 } else {
@@ -181,12 +181,12 @@ const drawSegments = (left, right, immerse) => {
                 out(c);
             }
         }
-        clearColors();
+        clearColors(false);
         out(" ");
     } else {
         var cols = process.argv[3];
         seglength = 0;
-        clearColors();
+        clearColors(true);
         for (i=0; i<left.length; i++) {
             c = left[i];
             if (c == "c{t}") {
@@ -212,7 +212,7 @@ const drawSegments = (left, right, immerse) => {
                 } else { //bg
                     cbg = parseColor(c);
                 }
-                writeColors(cbg, cfg);
+                writeColors(cbg, cfg, true);
                 trackLength((c.indexOf("bg") !== -1 ? " " : ""));
             } else if (c === "c{important}") {
                 // magic here
@@ -273,7 +273,7 @@ const drawSegments = (left, right, immerse) => {
             }
         }
         out(' ');
-        clearColors();
+        clearColors(true);
     }
 };
 
