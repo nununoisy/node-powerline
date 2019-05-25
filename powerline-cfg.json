@@ -52,6 +52,27 @@
             "custom": []
         }
     },
+    "colorssx": {
+        "bg": {
+            "termdefault": 0,
+            "err": 1,
+            "check": 2,
+            "user": 3,
+            "dir": 0,
+            "git": 5,
+            "immersebar": 0,
+            "custom": []
+        },
+        "fg": {
+            "termdefault": 15,
+            "err": 15,
+            "check": 0,
+            "user": 15,
+            "dir": 15,
+            "git": 15,
+            "custom": []
+        }
+    },
     "segments": {
         "ps1": [
             "defaultSegments.exitcode",

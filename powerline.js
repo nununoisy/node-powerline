@@ -46,8 +46,10 @@ const out = s => {
     process.stdout.write(s);
 };
 
-var bgc = config.colors.bg;
-var fgc = config.colors.fg;
+if (process.argv[4] != "256") config.colors256 = false;
+
+var bgc = (config.colors256) ? config.colors.bg : config.colorssx.bg;
+var fgc = (config.colors256) ? config.colors.fg : config.colorssx.fg;
 
 // define some helpful functions
 // summon subprocesses
@@ -118,19 +120,29 @@ const parseColor = color => {
 };
 
 const color16 = (color, bg) => {
+    color = parseInt(color); // for some reason it's a string
     if (color > 15) {
         throw new Error("Color is not 16 bit");
     }
+    if (color < 0) {
+        throw new Error("Invalid color");
+    }
     let intensity = "";
     let c16 = 0;
+    let bgn = bg ? 10 : 0;
     if (color >= 8) {
         intensity = ";1";
-        c16 = 22 + color;
+        c16 = 22 + color + bgn;
     } else {
-        c16 = 30 + color;
+        c16 = 30 + color + bgn;
     }
-    if (bg) c16 += 10;
     return c16 + intensity;
+}
+
+if (process.argv[3] == "DEBUG") {
+    console.log(bgc, fgc)
+    console.log(color16(12, true), color16(12, false))
+    process.exit()
 }
 
 const writeColors = (cbg, cfg, surround) => {
