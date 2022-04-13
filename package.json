@@ -4,7 +4,7 @@
   "description": "Powerline in node.js",
   "main": "powerline.js",
   "dependencies": {
-    "async": "^2.6.1"
+    "async": "^3.2.2"
   },
   "scripts": {
     "test": "node powerline.js 0 PS1"
